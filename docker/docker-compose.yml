@@ -1,0 +1,38 @@
+version: '3'
+
+services:
+
+  pgdb:
+    image: postgres
+    container_name: postgres_db
+    restart: on-failure
+
+    env_file:
+      - .env
+
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready","-U", "postgres", "-p", "password", "-d", "walks_dogs" ]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+
+    ports:
+      - 5432:5432
+
+
+  fastapi:
+    container_name: fastapi
+    restart: always
+    build: 
+      dockerfile: Dockerfile
+      context: ..\app
+
+    ports:
+      - 8000:8000
+
+    depends_on:
+      pgdb:
+        condition: service_healthy
+
+    command: uvicorn --host 0.0.0.0 --port 8000 routings:app --reload
+
