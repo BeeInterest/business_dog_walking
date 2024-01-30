@@ -1,5 +1,3 @@
-from typing import List
-from typing import Optional
 from sqlalchemy import ForeignKey
 from sqlalchemy import Column, String, Text, Integer,DateTime, Float
 from sqlalchemy.ext.declarative import declarative_base
@@ -21,13 +19,8 @@ class Dog(Base):
     dog_id: Mapped[int] = Column(Integer,primary_key=True)
     dog_name: Mapped[int] = Column(String(1024),nullable=False)
     dog_description: Mapped[str] = Column(Text)
-    created_at = Column(DateTime(),default=datetime.now)
-
-class User_x_dog(Base):
-    __tablename__ = "user_x_dog"
-    rel_id: Mapped[int] = Column(Integer,primary_key=True)
     user_id: Mapped[int] = Column(Integer, ForeignKey("users.user_id"),nullable=False)
-    dog_id: Mapped[int] = Column(Integer, ForeignKey("dog.dog_id"),nullable=False)
+    created_at = Column(DateTime(),default=datetime.now)
 
 class Time_price(Base):
     __tablename__ = "time_price"
@@ -39,9 +32,11 @@ class Walk(Base):
     __tablename__ = "walk"
     walk_id: Mapped[int] = Column(Integer,primary_key=True)
     start_date = Column(DateTime(),nullable=False)
+    hour_minute: Mapped[str]  = Column(String(5),nullable=False)
     end_date = Column(DateTime(),nullable=False)
     dog_id: Mapped[int] = Column(Integer, ForeignKey("dog.dog_id"),nullable=False)
     status: Mapped[str] = Column(String(4),nullable=False)
     created_at = Column(DateTime(),default=datetime.now)
-    
+    price: Mapped[float] = Column(Float,nullable=False)
+    who_walking: Mapped[str] = Column(String(10))
 

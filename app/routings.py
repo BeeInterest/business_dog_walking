@@ -1,7 +1,8 @@
 import json
 from fastapi import FastAPI
 from loguru import logger
-from functions import DB, Checks
+from modules.db import DB
+from modules.checks import Checks
 from sqlalchemy import create_engine
 from models import Base
 from settings import settings_db
@@ -53,6 +54,8 @@ async def create_walk(name: str,
             Если объект не существовал, то
                 {'message': 'Объект сохранен',
                     'object_id': int}
+            Если цена для времени не была создана, то
+                {'error': 'Вы не создали цену для времени'}
     """
     
     check = Checks()
@@ -79,9 +82,9 @@ async def create_walk(name: str,
     return json.dumps(result,ensure_ascii=False)
 
 @app.post("/get/walks")
-async def get_walks(current_date: str, status: str = None):
+async def get_walks(current_date: str = None, status: str = None):
     """
-        Функция для получения всех заказов по указанной дате и статусу (статус опционален)
+        Функция для получения всех заказов по указанной дате и статусу (оба параметра опциональны)
         Parameters
         ----------
         current_date: str
@@ -102,24 +105,25 @@ async def get_walks(current_date: str, status: str = None):
                         'start_date': '2024-01-30 14:00',
                         'end_date': '2024-01-30 14:30',
                         'created_at': '2024-01-29 13:47',
-                        'status': 'CRTD',
+                        'status': 'ACSS',
                         'dog_name': 'Барбос',
                         'dog_description':'Особо активный, во время прогулки нужно с ним бегать',
                         'user_name': 'Иван',
                         'phone': '89664454560',
-                        'price': 500.00
+                        'price': 500.00,
+                        'who_walking': 'Петр'
                     }, 
                     ...
                 ]
             }
     """
     check = Checks()
-    check_date = check.check_current_date(current_date=current_date)
-
-    if 'error' in check_date:
-        return json.dumps(check_date,ensure_ascii=False)
-    else:
-        current_date = check_date['current_date']
+    if current_date:
+        check_date = check.check_current_date(current_date=current_date)
+        if 'error' in check_date:
+            return json.dumps(check_date,ensure_ascii=False)
+        else:
+            current_date = check_date['current_date']
 
     if status:
         if len(status) > 4:
@@ -130,8 +134,8 @@ async def get_walks(current_date: str, status: str = None):
     return json.dumps({'walks': items},ensure_ascii=False)
 
 
-@app.post("/update/walk/status")
-async def update_status(walk_id: int, status: str):
+@app.put("/update/walk/status")
+async def update_status(walk_id: int, status: str, who_walking: str = None):
     """
         Функция обновления статуса у заказа
         Parameters
@@ -140,10 +144,12 @@ async def update_status(walk_id: int, status: str):
             id заказа
             Пример: 1
         status: str
-            Статус заказа
-            Может быть None (если никакое значение не получено). 
+            Статус заказа 
             Либо 'ACSS' (принято), либо 'RJCT' (отклонено), либо 'CRTD' (создано)
+            Если статус 'ACSS', обязательно надо вписать имя гуляющего с собакой в who_walking
             Пример: CRTD
+        who_walking: str
+            Имя гуляющего
         Returns
         -------
         json
@@ -155,7 +161,9 @@ async def update_status(walk_id: int, status: str):
     if status:
         if len(status) > 4:
             return json.dumps({'error': 'Неправильный статус'},ensure_ascii=False)
-    return json.dumps(db.update(table_name='walk',values={'walk_id': walk_id,'status': status}),ensure_ascii=False)
+        if status == 'ACSS' and (not who_walking or who_walking == ''):
+            return json.dumps({'error': 'Укажите имя гуляющего'},ensure_ascii=False)
+    return json.dumps(db.update(table_name='walk',values={'walk_id': walk_id,'status': status,'who_walking': who_walking}),ensure_ascii=False)
 
 @app.post("/create/price")
 async def create_price(price:float):
@@ -175,7 +183,7 @@ async def create_price(price:float):
     return json.dumps(db.create_price(price=price), ensure_ascii=False)
 
 
-@app.post("/update/price")
+@app.put("/update/price")
 async def update_price(hour_minute: str, price: float):
     """
         Функция изменения цены на определенное время
